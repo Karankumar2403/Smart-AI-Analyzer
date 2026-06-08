@@ -3092,11 +3092,6 @@ class ResumeApp:
 
     def render_login_page(self):
         """Render a premium login page for unauthenticated users"""
-        from utils.auth_manager import get_google_auth_url, get_github_auth_url
-        
-        google_url = get_google_auth_url()
-        github_url = get_github_auth_url()
-        
         # Center-aligned layout
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
@@ -3115,50 +3110,32 @@ class ResumeApp:
             
             # Glass container
             st.markdown(f"""
-            <div class="stCard" style="padding: 2.5rem; margin-top: 1rem; border-radius: 24px;">
-                <h3 style="text-align: center; margin-bottom: 2rem; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 1.8rem;">
+            <div class="stCard" style="padding: 2.5rem; margin-top: 1rem; border-radius: 24px; margin-bottom: 1.5rem;">
+                <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 1.8rem;">
                     Secure Portal Login
                 </h3>
-                <p style="text-align: center; color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem;">
-                    Choose an authentication method to unlock your personal workspace and analytics dashboard.
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1rem;">
+                    Enter your administrator credentials to unlock your workspace and analytics dashboard.
                 </p>
-                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;">
-                    <a href="{google_url}" target="_self" style="text-decoration: none;">
-                        <div style="display: flex; align-items: center; justify-content: center; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" style="width: 20px; height: 20px; margin-right: 12px;">
-                            <span style="color: #1f2937; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif;">Continue with Google</span>
-                        </div>
-                    </a>
-                    <a href="{github_url}" target="_self" style="text-decoration: none;">
-                        <div style="display: flex; align-items: center; justify-content: center; background-color: #1e293b; border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
-                            <svg height="20" viewBox="0 0 16 16" version="1.1" width="20" style="fill: white; margin-right: 12px;">
-                                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-                            </svg>
-                            <span style="color: #ffffff; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif;">Continue with GitHub</span>
-                        </div>
-                    </a>
-                </div>
             </div>
             """, unsafe_allow_html=True)
             
-            # Divider and Admin login trigger
-            st.markdown("<div style='text-align: center; color: var(--text-secondary); margin: 1.5rem 0;'>or login as administrator</div>", unsafe_allow_html=True)
-            with st.expander("👤 Administrator Access"):
-                admin_email = st.text_input("Admin Email", key="login_admin_email")
-                admin_pass = st.text_input("Password", type="password", key="login_admin_password")
-                if st.button("Authenticate", key="login_admin_submit", width='stretch'):
-                    try:
-                        if verify_admin(admin_email, admin_pass):
-                            st.session_state.is_admin = True
-                            st.session_state.current_admin_email = admin_email
-                            log_admin_action(admin_email, "login")
-                            st.success("Successfully authenticated as Admin!")
-                            time.sleep(0.5)
-                            st.rerun()
-                        else:
-                            st.error("Invalid administrator credentials.")
-                    except Exception as e:
-                        st.error(f"Authentication error: {str(e)}")
+            # Form fields directly in the container space
+            admin_email = st.text_input("Admin Email", key="login_admin_email")
+            admin_pass = st.text_input("Password", type="password", key="login_admin_password")
+            if st.button("Authenticate", key="login_admin_submit", width='stretch'):
+                try:
+                    if verify_admin(admin_email, admin_pass):
+                        st.session_state.is_admin = True
+                        st.session_state.current_admin_email = admin_email
+                        log_admin_action(admin_email, "login")
+                        st.success("Successfully authenticated as Admin! 🎉")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("Invalid administrator credentials.")
+                except Exception as e:
+                    st.error(f"Authentication error: {str(e)}")
 
 
     def main(self):
@@ -3171,62 +3148,12 @@ class ResumeApp:
         self.apply_theme_colors()
         self.apply_global_styles()
         
-        # Check query parameters for OAuth callback
-        query_params = st.query_params
-        is_callback = "code" in query_params and "state" in query_params
-        
-        # Decode and restore user session from JWT if session is active
-        if 'jwt_token' in st.session_state and 'user_profile' not in st.session_state:
-            from utils.auth_manager import decode_jwt_token
-            profile = decode_jwt_token(st.session_state.jwt_token)
-            if profile:
-                st.session_state.user_profile = profile
-            else:
-                del st.session_state.jwt_token
+        is_authenticated = st.session_state.get('is_admin', False)
 
-        is_authenticated = ('user_profile' in st.session_state) or st.session_state.get('is_admin', False)
-
-        if not is_authenticated and not is_callback:
+        if not is_authenticated:
             self.render_login_page()
             self.add_footer()
             return
-        
-        # Check query parameters for OAuth callback
-        query_params = st.query_params
-        if "code" in query_params and "state" in query_params:
-            code = query_params["code"]
-            state = query_params["state"]
-            
-            # Clear query parameters
-            st.query_params.clear()
-            
-            # Exchange callback code
-            from utils.auth_manager import handle_google_callback, handle_github_callback, generate_jwt_token
-            user_info = None
-            if state == "google":
-                user_info = handle_google_callback(code)
-            elif state == "github":
-                user_info = handle_github_callback(code)
-                
-            if user_info:
-                token = generate_jwt_token(user_info)
-                if token:
-                    st.session_state.jwt_token = token
-                    st.session_state.user_profile = user_info
-                    st.success(f"Logged in successfully via {user_info['provider'].capitalize()}! 🎉")
-                    time.sleep(1)
-                    st.rerun()
-            else:
-                st.error("Authentication failed. Please try again.")
-
-        # Decode and restore user session from JWT if session is active
-        if 'jwt_token' in st.session_state and 'user_profile' not in st.session_state:
-            from utils.auth_manager import decode_jwt_token
-            profile = decode_jwt_token(st.session_state.jwt_token)
-            if profile:
-                st.session_state.user_profile = profile
-            else:
-                del st.session_state.jwt_token
         
         # Admin login/logout in sidebar
         with st.sidebar:
@@ -3246,49 +3173,24 @@ class ResumeApp:
                 st.rerun()
             st.markdown("---")
             
-            # User profile or Login Options
-            if 'user_profile' in st.session_state:
-                profile = st.session_state.user_profile
+            # Display current session profile
+            if st.session_state.get('is_admin', False):
+                admin_email = st.session_state.get('current_admin_email', 'admin@example.com')
                 st.markdown(f"""
                 <div style="background-color: var(--bg-light); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center;">
-                    <img src="{profile.get('avatar', 'https://www.w3schools.com/howto/img_avatar.png')}" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-color); margin-bottom: 8px;">
-                    <div style="font-weight: 600; font-size: 15px; color: var(--text-primary);">{profile.get('name', 'User')}</div>
-                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">{profile.get('email', '')}</div>
+                    <img src="https://www.w3schools.com/howto/img_avatar.png" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-color); margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 15px; color: var(--text-primary);">Administrator</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">{admin_email}</div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 if st.button("🚪 Logout", key="oauth_logout_btn", width='stretch'):
-                    del st.session_state.user_profile
-                    if 'jwt_token' in st.session_state:
-                        del st.session_state.jwt_token
+                    st.session_state.is_admin = False
+                    st.session_state.current_admin_email = None
                     st.success("Logged out successfully!")
                     time.sleep(0.5)
                     st.rerun()
-            else:
-                st.markdown("🔒 **Account Login**")
-                from utils.auth_manager import get_google_auth_url, get_github_auth_url
-                
-                google_url = get_google_auth_url()
-                github_url = get_github_auth_url()
-                
-                st.markdown(f"""
-                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
-                    <a href="{google_url}" target="_self" style="text-decoration: none;">
-                        <div style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer;">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" style="width: 18px; height: 18px; margin-right: 10px;">
-                            <span style="color: #757575; font-size: 14px; font-weight: 500; font-family: 'Roboto', sans-serif;">Sign in with Google</span>
-                        </div>
-                    </a>
-                    <a href="{github_url}" target="_self" style="text-decoration: none;">
-                        <div style="display: flex; align-items: center; justify-content: center; background-color: #24292e; padding: 10px; border-radius: 8px; cursor: pointer;">
-                            <svg height="18" viewBox="0 0 16 16" version="1.1" width="18" style="fill: white; margin-right: 10px;">
-                                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
-                            </svg>
-                            <span style="color: white; font-size: 14px; font-weight: 500; font-family: sans-serif;">Sign in with GitHub</span>
-                        </div>
-                    </a>
-                </div>
-                """, unsafe_allow_html=True)
+            
             st.markdown("---")
             
             # Navigation buttons
@@ -3297,39 +3199,6 @@ class ResumeApp:
                     cleaned_name = page_name.lower().replace(" ", "_").replace("🏠", "").replace("🔍", "").replace("📝", "").replace("📊", "").replace("🎯", "").replace("💬", "").replace("ℹ️", "").strip()
                     st.session_state.page = cleaned_name
                     st.rerun()
-
-            # Add some space before admin login
-            st.markdown("<br><br>", unsafe_allow_html=True)
-            st.markdown("---")
-
-            # Admin Login/Logout section at bottom
-            if st.session_state.get('is_admin', False):
-                st.success(f"Logged in as: {st.session_state.get('current_admin_email')}")
-                if st.button("Logout", key="logout_button"):
-                    try:
-                        log_admin_action(st.session_state.get('current_admin_email'), "logout")
-                        st.session_state.is_admin = False
-                        st.session_state.current_admin_email = None
-                        st.success("Logged out successfully!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error during logout: {str(e)}")
-            else:
-                with st.expander("👤 Admin Login"):
-                    admin_email_input = st.text_input("Email", key="admin_email_input")
-                    admin_password = st.text_input("Password", type="password", key="admin_password_input")
-                    if st.button("Login", key="login_button"):
-                            try:
-                                if verify_admin(admin_email_input, admin_password):
-                                    st.session_state.is_admin = True
-                                    st.session_state.current_admin_email = admin_email_input
-                                    log_admin_action(admin_email_input, "login")
-                                    st.success("Logged in successfully!")
-                                    st.rerun()
-                                else:
-                                    st.error("Invalid credentials")
-                            except Exception as e:
-                                st.error(f"Error during login: {str(e)}")
         
             # Display the repository notification in the sidebar
             self.show_repo_notification()
