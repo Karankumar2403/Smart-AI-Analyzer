@@ -27,7 +27,7 @@ from config.database import (
     get_database_connection, save_resume_data, save_analysis_data,
     init_database, verify_admin, log_admin_action, save_ai_analysis_data,
     get_ai_analysis_stats, reset_ai_analysis_stats, get_detailed_ai_analysis_stats,
-    get_user_resume_history
+    get_user_resume_history, register_user, verify_user
 )
 from utils.ai_resume_analyzer import AIResumeAnalyzer
 from utils.resume_builder import ResumeBuilder
@@ -2854,7 +2854,7 @@ class ResumeApp:
         
         # Verify user login session
         if 'user_profile' not in st.session_state:
-            st.warning("🔒 Please sign in with Google or GitHub in the sidebar to view your resume history.")
+            st.warning("🔒 Please sign in to view your resume history.")
             
             # Show a beautiful CTA card
             st.markdown("""
@@ -3098,7 +3098,7 @@ class ResumeApp:
             st.markdown("<br><br>", unsafe_allow_html=True)
             # Modern hero title
             st.markdown("""
-                <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="text-align: center; margin-bottom: 1rem;">
                     <div style="font-size: 3.5rem; font-weight: 800; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
                         Smart AI Analyzer
                     </div>
@@ -3110,32 +3110,68 @@ class ResumeApp:
             
             # Glass container
             st.markdown(f"""
-            <div class="stCard" style="padding: 2.5rem; margin-top: 1rem; border-radius: 24px; margin-bottom: 1.5rem;">
-                <h3 style="text-align: center; margin-bottom: 1.5rem; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 1.8rem;">
-                    Secure Portal Login
+            <div class="stCard" style="padding: 1.5rem; margin-top: 1rem; border-radius: 24px; margin-bottom: 1rem; text-align: center;">
+                <h3 style="margin-bottom: 0.5rem; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 1.8rem;">
+                    Secure Portal Access
                 </h3>
-                <p style="text-align: center; color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 1rem;">
-                    Enter your administrator credentials to unlock your workspace and analytics dashboard.
+                <p style="color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 0;">
+                    Please sign in or create an account to access the workspace.
                 </p>
             </div>
             """, unsafe_allow_html=True)
             
-            # Form fields directly in the container space
-            admin_email = st.text_input("Admin Email", key="login_admin_email")
-            admin_pass = st.text_input("Password", type="password", key="login_admin_password")
-            if st.button("Authenticate", key="login_admin_submit", width='stretch'):
-                try:
-                    if verify_admin(admin_email, admin_pass):
-                        st.session_state.is_admin = True
-                        st.session_state.current_admin_email = admin_email
-                        log_admin_action(admin_email, "login")
-                        st.success("Successfully authenticated as Admin! 🎉")
-                        time.sleep(0.5)
-                        st.rerun()
+            tab_login, tab_register, tab_admin = st.tabs(["🔑 Sign In", "📝 Sign Up", "⚙️ Admin Login"])
+            
+            with tab_login:
+                user_email = st.text_input("Email Address", key="login_user_email")
+                user_pass = st.text_input("Password", type="password", key="login_user_password")
+                if st.button("Sign In", key="login_user_submit", width='stretch'):
+                    if not user_email or not user_pass:
+                        st.error("Please enter both email and password.")
                     else:
-                        st.error("Invalid administrator credentials.")
-                except Exception as e:
-                    st.error(f"Authentication error: {str(e)}")
+                        profile = verify_user(user_email, user_pass)
+                        if profile:
+                            st.session_state.user_profile = profile
+                            st.success(f"Welcome back, {profile['name']}! 🎉")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Invalid email or password.")
+                            
+            with tab_register:
+                reg_name = st.text_input("Full Name", key="register_name")
+                reg_email = st.text_input("Email Address", key="register_email")
+                reg_pass = st.text_input("Password", type="password", key="register_password")
+                reg_confirm = st.text_input("Confirm Password", type="password", key="register_confirm_password")
+                if st.button("Create Account", key="register_submit", width='stretch'):
+                    if not reg_name or not reg_email or not reg_pass:
+                        st.error("All fields are required.")
+                    elif reg_pass != reg_confirm:
+                        st.error("Passwords do not match.")
+                    else:
+                        if register_user(reg_name, reg_email, reg_pass):
+                            st.success("Account created successfully! You can now sign in.")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Email already registered or registration failed.")
+                            
+            with tab_admin:
+                admin_email = st.text_input("Admin Email", key="login_admin_email")
+                admin_pass = st.text_input("Password", type="password", key="login_admin_password")
+                if st.button("Authenticate as Admin", key="login_admin_submit", width='stretch'):
+                    try:
+                        if verify_admin(admin_email, admin_pass):
+                            st.session_state.is_admin = True
+                            st.session_state.current_admin_email = admin_email
+                            log_admin_action(admin_email, "login")
+                            st.success("Successfully authenticated as Admin! 🎉")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Invalid administrator credentials.")
+                    except Exception as e:
+                        st.error(f"Authentication error: {str(e)}")
 
 
     def main(self):
@@ -3148,14 +3184,14 @@ class ResumeApp:
         self.apply_theme_colors()
         self.apply_global_styles()
         
-        is_authenticated = st.session_state.get('is_admin', False)
+        is_authenticated = st.session_state.get('is_admin', False) or ('user_profile' in st.session_state)
 
         if not is_authenticated:
             self.render_login_page()
             self.add_footer()
             return
         
-        # Admin login/logout in sidebar
+        # User profile / Admin profile in sidebar
         with st.sidebar:
             st_lottie(self.load_lottie_url("https://assets5.lottiefiles.com/packages/lf20_xyadoh9h.json"), height=200, key="sidebar_animation")
             st.title("Smart AI Analyzer")
@@ -3187,6 +3223,21 @@ class ResumeApp:
                 if st.button("🚪 Logout", key="oauth_logout_btn", width='stretch'):
                     st.session_state.is_admin = False
                     st.session_state.current_admin_email = None
+                    st.success("Logged out successfully!")
+                    time.sleep(0.5)
+                    st.rerun()
+            elif 'user_profile' in st.session_state:
+                profile = st.session_state.user_profile
+                st.markdown(f"""
+                <div style="background-color: var(--bg-light); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center;">
+                    <img src="https://www.w3schools.com/howto/img_avatar.png" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-color); margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 15px; color: var(--text-primary);">{profile.get('name', 'User')}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">{profile.get('email', '')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🚪 Logout", key="user_logout_btn", width='stretch'):
+                    del st.session_state.user_profile
                     st.success("Logged out successfully!")
                     time.sleep(0.5)
                     st.rerun()

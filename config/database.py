@@ -82,6 +82,17 @@ def init_database():
     )
     ''')
     
+    # Create users table for standard authentication
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        email TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
     # Insert default admin if table is empty
     cursor.execute("SELECT COUNT(*) FROM admin")
     if cursor.fetchone()[0] == 0:
@@ -89,6 +100,36 @@ def init_database():
     
     conn.commit()
     conn.close()
+
+def register_user(name, email, password):
+    """Register a new user"""
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', (name, email, password))
+        conn.commit()
+        return True
+    except Exception as e:
+        print(f"Error registering user: {str(e)}")
+        return False
+    finally:
+        conn.close()
+
+def verify_user(email, password):
+    """Verify user credentials"""
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('SELECT name, email FROM users WHERE email = ? AND password = ?', (email, password))
+        result = cursor.fetchone()
+        if result:
+            return {'name': result[0], 'email': result[1]}
+        return None
+    except Exception as e:
+        print(f"Error verifying user: {str(e)}")
+        return None
+    finally:
+        conn.close()
 
 def save_resume_data(data):
     """Save resume data to database"""
