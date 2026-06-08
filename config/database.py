@@ -82,6 +82,11 @@ def init_database():
     )
     ''')
     
+    # Insert default admin if table is empty
+    cursor.execute("SELECT COUNT(*) FROM admin")
+    if cursor.fetchone()[0] == 0:
+        cursor.execute("INSERT INTO admin (email, password) VALUES (?, ?)", ("admin@analyzer.com", "admin123"))
+    
     conn.commit()
     conn.close()
 
