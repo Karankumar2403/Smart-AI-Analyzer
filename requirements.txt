@@ -33,3 +33,5 @@ python-pptx
 matplotlib
 seaborn
 pypdf2
+requests-oauthlib
+PyJWT

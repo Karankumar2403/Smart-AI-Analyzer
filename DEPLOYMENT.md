@@ -1,6 +1,6 @@
-# Deployment Guide for Smart AI Resume Analyzer
+# Deployment Guide for Smart AI Analyzer
 
-This guide provides instructions for deploying the Smart AI Resume Analyzer application in various environments, with a focus on resolving Chrome webdriver issues.
+This guide provides instructions for deploying the Smart AI Analyzer application in various environments, with a focus on resolving Chrome webdriver issues.
 
 ## Local Deployment
 

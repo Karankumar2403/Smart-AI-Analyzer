@@ -1,5 +1,5 @@
-﻿"""
-Smart Resume AI - Main Application
+"""
+Smart AI Analyzer - Main Application
 """
 import time
 from PIL import Image
@@ -15,6 +15,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Inches, Pt
 from docx import Document
 import io
+import os
 import base64
 import plotly.graph_objects as go
 from streamlit_lottie import st_lottie
@@ -25,7 +26,8 @@ from config.job_roles import JOB_ROLES
 from config.database import (
     get_database_connection, save_resume_data, save_analysis_data,
     init_database, verify_admin, log_admin_action, save_ai_analysis_data,
-    get_ai_analysis_stats, reset_ai_analysis_stats, get_detailed_ai_analysis_stats
+    get_ai_analysis_stats, reset_ai_analysis_stats, get_detailed_ai_analysis_stats,
+    get_user_resume_history
 )
 from utils.ai_resume_analyzer import AIResumeAnalyzer
 from utils.resume_builder import ResumeBuilder
@@ -39,7 +41,7 @@ import datetime
 
 # Set page config at the very beginning
 st.set_page_config(
-    page_title="Smart Resume AI",
+    page_title="Smart AI Analyzer",
     page_icon="🚀",
     layout="wide"
 )
@@ -82,6 +84,7 @@ class ResumeApp:
             "🏠 HOME": self.render_home,
             "🔍 RESUME ANALYZER": self.render_analyzer,
             "📝 RESUME BUILDER": self.render_builder,
+            "📜 MY HISTORY": self.render_history,
             "📊 DASHBOARD": self.render_dashboard,
             "🎯 JOB SEARCH": self.render_job_search,
             "💬 FEEDBACK": self.render_feedback_page,
@@ -131,6 +134,67 @@ class ResumeApp:
             return None
         return r.json()
 
+    def apply_theme_colors(self):
+        """Apply selected UI theme colors dynamically"""
+        theme = st.session_state.get('theme', 'Sleek Dark')
+        
+        themes = {
+            "Sleek Dark": {
+                "--primary-gradient": "linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #00F2FE 100%)",
+                "--secondary-gradient": "linear-gradient(135deg, #1E1B4B 0%, #0F172A 100%)",
+                "--bg-darker": "#090D16",
+                "--bg-dark": "#0F172A",
+                "--bg-light": "#1E293B",
+                "--text-primary": "#F8FAFC",
+                "--text-secondary": "#94A3B8",
+                "--border-color": "rgba(255, 255, 255, 0.08)",
+                "--accent-color": "#6366F1"
+            },
+            "Modern Light": {
+                "--primary-gradient": "linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%)",
+                "--secondary-gradient": "linear-gradient(135deg, #ffffff 0%, #F8FAFC 100%)",
+                "--bg-darker": "#F1F5F9",
+                "--bg-dark": "#ffffff",
+                "--bg-light": "#E2E8F0",
+                "--text-primary": "#0F172A",
+                "--text-secondary": "#475569",
+                "--border-color": "#E2E8F0",
+                "--accent-color": "#4F46E5"
+            },
+            "Sunset Glow": {
+                "--primary-gradient": "linear-gradient(135deg, #F43F5E 0%, #D946EF 50%, #F59E0B 100%)",
+                "--secondary-gradient": "linear-gradient(135deg, #1E1B4B 0%, #111827 100%)",
+                "--bg-darker": "#110609",
+                "--bg-dark": "#1F0B13",
+                "--bg-light": "#361422",
+                "--text-primary": "#FDF2F8",
+                "--text-secondary": "#F472B6",
+                "--border-color": "rgba(244, 63, 94, 0.15)",
+                "--accent-color": "#F43F5E"
+            }
+        }
+        
+        selected = themes.get(theme, themes["Sleek Dark"])
+        var_str = "\n".join([f"{k}: {v} !important;" for k, v in selected.items()])
+        
+        # Override root colors based on selected theme
+        st.markdown(f"""
+            <style>
+            :root {{
+                {var_str}
+            }}
+            .stApp {{
+                background-color: var(--bg-darker) !important;
+                color: var(--text-primary) !important;
+            }}
+            .main {{
+                background-color: var(--bg-dark) !important;
+            }}
+            /* Sidebar Light Mode styling */
+            {"div[data-testid='stSidebar'] { background-color: var(--bg-dark) !important; }" if theme == "Modern Light" else ""}
+            </style>
+        """, unsafe_allow_html=True)
+
     def apply_global_styles(self):
         st.markdown("""
         <style>
@@ -141,22 +205,22 @@ class ResumeApp:
         }
 
         ::-webkit-scrollbar-track {
-            background: #1a1a1a;
+            background: var(--bg-darker);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb {
-            background: #4CAF50;
+            background: var(--border-color);
             border-radius: 4px;
         }
 
         ::-webkit-scrollbar-thumb:hover {
-            background: #45a049;
+            background: var(--accent-color);
         }
 
         /* Global Styles */
         .main-header {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            background: var(--primary-gradient);
             padding: 2rem;
             border-radius: 15px;
             margin-bottom: 2rem;
@@ -195,20 +259,20 @@ class ResumeApp:
         }
 
         .template-card {
-            background: rgba(45, 45, 45, 0.9);
+            background: rgba(30, 41, 59, 0.4);
             border-radius: 20px;
             padding: 2rem;
             position: relative;
             overflow: hidden;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--border-color);
             transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .template-card:hover {
             transform: translateY(-10px);
             box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-            border-color: #4CAF50;
+            border-color: var(--accent-color);
         }
 
         .template-card::before {
@@ -218,13 +282,13 @@ class ResumeApp:
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(45deg, transparent 0%, rgba(76,175,80,0.1) 100%);
+            background: linear-gradient(45deg, transparent 0%, rgba(99, 102, 241, 0.08) 100%);
             z-index: 1;
         }
 
         .template-icon {
             font-size: 3rem;
-            color: #4CAF50;
+            color: var(--accent-color);
             margin-bottom: 1.5rem;
             position: relative;
             z-index: 2;
@@ -265,14 +329,14 @@ class ResumeApp:
         }
 
         .feature-icon {
-            color: #4CAF50;
+            color: var(--accent-color);
             margin-right: 0.8rem;
             font-size: 1.1rem;
         }
 
         /* Button Styles */
         .action-button {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            background: var(--primary-gradient);
             color: white;
             padding: 1rem 2rem;
             border-radius: 50px;
@@ -289,7 +353,7 @@ class ResumeApp:
 
         .action-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(76,175,80,0.3);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
         }
 
         .action-button::before {
@@ -309,12 +373,12 @@ class ResumeApp:
 
         /* Form Section Styles */
         .form-section {
-            background: rgba(45, 45, 45, 0.9);
+            background: rgba(30, 41, 59, 0.4);
             border-radius: 20px;
             padding: 2rem;
             margin: 2rem 0;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid var(--border-color);
         }
 
         .form-section-title {
@@ -323,7 +387,7 @@ class ResumeApp:
             color: white;
             margin-bottom: 1.5rem;
             padding-bottom: 0.8rem;
-            border-bottom: 2px solid #4CAF50;
+            border-bottom: 2px solid var(--accent-color);
         }
 
         .form-group {
@@ -341,15 +405,15 @@ class ResumeApp:
             width: 100%;
             padding: 1rem;
             border-radius: 10px;
-            border: 1px solid rgba(255,255,255,0.1);
-            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid var(--border-color);
+            background: rgba(15, 23, 42, 0.6);
             color: white;
             transition: all 0.3s ease;
         }
 
         .form-input:focus {
-            border-color: #4CAF50;
-            box-shadow: 0 0 0 2px rgba(76,175,80,0.2);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
             outline: none;
         }
 
@@ -362,21 +426,21 @@ class ResumeApp:
         }
 
         .skill-tag {
-            background: rgba(76,175,80,0.1);
-            color: #4CAF50;
+            background: rgba(99, 102, 241, 0.1);
+            color: var(--accent-color);
             padding: 0.6rem 1.2rem;
             border-radius: 50px;
-            border: 1px solid #4CAF50;
+            border: 1px solid var(--accent-color);
             font-size: 0.9rem;
             transition: all 0.3s ease;
             cursor: pointer;
         }
 
         .skill-tag:hover {
-            background: #4CAF50;
+            background: var(--accent-color);
             color: white;
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(76,175,80,0.2);
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
         }
 
         /* Progress Circle */
@@ -397,7 +461,7 @@ class ResumeApp:
             fill: none;
             stroke-width: 8;
             stroke-linecap: round;
-            stroke: #4CAF50;
+            stroke: var(--accent-color);
             transform-origin: 50% 50%;
             transition: all 0.3s ease;
         }
@@ -466,42 +530,27 @@ class ResumeApp:
         
     def add_footer(self):
         """Add a footer to all pages"""
-        st.markdown("<hr style='margin-top: 50px; margin-bottom: 20px;'>", unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([1, 3, 1])
-        
-        with col2:
-            # GitHub star button with lottie animation
-            st.markdown("""
-            <div style='display: flex; justify-content: center; align-items: center; margin-bottom: 10px;'>
-                <a href='https://github.com/Hunterdii/Smart-AI-Resume-Analyzer' target='_blank' style='text-decoration: none;'>
-                    <div style='display: flex; align-items: center; background-color: #24292e; padding: 5px 10px; border-radius: 5px; transition: all 0.3s ease;'>
-                        <svg height="16" width="16" viewBox="0 0 16 16" version="1.1" style='margin-right: 5px;'>
-                            <path fill-rule="evenodd" d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z" fill="gold"></path>
-                        </svg>
-                        <span style='color: white; font-size: 14px;'>Star this repo</span>
-                    </div>
+        st.markdown("""
+        <div style="margin-top: 80px; padding: 25px 0; border-top: 1px solid var(--border-color); text-align: center; font-family: 'Inter', sans-serif;">
+            <div style="font-size: 14px; color: var(--text-primary); font-weight: 500; margin-bottom: 6px;">
+                © 2026 Smart AI Analyzer. All rights reserved.
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                Powered by Google Gemini AI & Streamlit | Enterprise Resume Optimization Engine
+            </div>
+            <div style="font-size: 13px; color: var(--text-secondary);">
+                Crafted by 
+                <a href="https://github.com/Karankumar2403" target="_blank" style="text-decoration: none; color: var(--accent-color); font-weight: 600; transition: all 0.3s ease;">
+                    Karan Kumar (Karankumar2403)
                 </a>
             </div>
-            """, unsafe_allow_html=True)
-            
-            # Footer text
-            st.markdown("""
-            <p style='text-align: center;'>
-                Powered by <b>Streamlit</b> and <b>Google Gemini AI</b> | Developed by 
-                <a href="https://www.linkedin.com/in/patel-hetkumar-sandipbhai-8b110525a/" target="_blank" style='text-decoration: none; color: #FFFFFF'>
-                    <b>Het Patel (Hunterdii)</b>
-                </a>
-            </p>
-            <p style='text-align: center; font-size: 12px; color: #888888;'>
-                "Every star counts! If you find this project helpful, please consider starring the repo to help it reach more people."
-            </p>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
 
     def load_image(self, image_name):
         """Load image from static directory"""
         try:
-            image_path = f"c:/Users/shree/Downloads/smart-resume-ai/{image_name}"
+            image_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", image_name)
             with open(image_path, "rb") as f:
                 image_bytes = f.read()
             encoded = base64.b64encode(image_bytes).decode()
@@ -547,7 +596,7 @@ class ResumeApp:
         """Render the dashboard page"""
         self.dashboard_manager.render_dashboard()
 
-        st.toast("Check out these repositories: [Awesome Hacking](https://github.com/Hunterdii/Awesome-Hacking)", icon="ℹ️")
+        st.info("💡 Quick Tip: Use keywords from the job description to improve your ATS score!")
 
 
     def render_empty_state(self, icon, message):
@@ -606,6 +655,14 @@ class ResumeApp:
 
         # Personal Information
         st.subheader("Personal Information")
+
+        # Auto-fill from OAuth profile if available and form is empty
+        if 'user_profile' in st.session_state:
+            profile = st.session_state.user_profile
+            if not st.session_state.form_data['personal_info']['full_name']:
+                st.session_state.form_data['personal_info']['full_name'] = profile.get('name', '')
+            if not st.session_state.form_data['personal_info']['email']:
+                st.session_state.form_data['personal_info']['email'] = profile.get('email', '')
 
         col1, col2 = st.columns(2)
         with col1:
@@ -941,55 +998,51 @@ class ResumeApp:
                     }),
                     "template": selected_template
                 }
-
-                print(f"Resume data prepared: {resume_data}")
-
                 try:
-                    # Generate resume
+                    # Generate resume in multiple formats
                     resume_buffer = self.builder.generate_resume(resume_data)
+                    pdf_buffer = self.builder.generate_pdf(resume_data)
+                    txt_buffer = self.builder.generate_txt(resume_data)
+                    
                     if resume_buffer:
                         try:
                             # Save resume data to database
                             save_resume_data(resume_data)
-
-                            # Offer the resume for download
                             st.success("✅ Resume generated successfully!")
+                        except Exception as db_error:
+                            print(f"Warning: Failed to save to database: {str(db_error)}")
+                            st.warning("⚠️ Resume generated but couldn't be saved to database")
 
-                            # Show snowflake effect
-                            st.snow()
+                        # Show snowflake effect
+                        st.snow()
 
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
                             st.download_button(
-                                label="Download Resume 📥",
+                                label="Download MS Word (.docx) 📥",
                                 data=resume_buffer,
-                                file_name=f"{
-    current_name.replace(
-        ' ', '_')}_resume.docx",
+                                file_name=f"{current_name.replace(' ', '_')}_resume.docx",
                                 mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                                 on_click=lambda: st.balloons()
                             )
-                        except Exception as db_error:
-                            print(
-    f"Warning: Failed to save to database: {
-        str(db_error)}")
-                            # Still allow download even if database save fails
-                            st.warning(
-                                "⚠️ Resume generated but couldn't be saved to database")
-                            
-                            # Show balloons effect
-                            st.balloons()
-
+                        with col2:
                             st.download_button(
-                                label="Download Resume 📥",
-                                data=resume_buffer,
-                                file_name=f"{
-    current_name.replace(
-        ' ', '_')}_resume.docx",
-                                mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                label="Download PDF (.pdf) 📥",
+                                data=pdf_buffer,
+                                file_name=f"{current_name.replace(' ', '_')}_resume.pdf",
+                                mime="application/pdf",
+                                on_click=lambda: st.balloons()
+                            )
+                        with col3:
+                            st.download_button(
+                                label="Download Plain Text (.txt) 📥",
+                                data=txt_buffer,
+                                file_name=f"{current_name.replace(' ', '_')}_resume.txt",
+                                mime="text/plain",
                                 on_click=lambda: st.balloons()
                             )
                     else:
-                        st.error(
-                            "❌ Failed to generate resume. Please try again.")
+                        st.error("❌ Failed to generate resume. Please try again.")
                         print("Resume buffer was None")
                 except Exception as gen_error:
                     print(f"Error during resume generation: {str(gen_error)}")
@@ -1000,8 +1053,6 @@ class ResumeApp:
                 print(f"Error preparing resume data: {str(e)}")
                 print(f"Full traceback: {traceback.format_exc()}")
                 st.error(f"❌ Error preparing resume data: {str(e)}")
-
-        st.toast("Check out these repositories: [30-Days-Of-Rust](https://github.com/Hunterdii/30-Days-Of-Rust)", icon="ℹ️")
 
     def render_about(self):
         """Render the about page"""
@@ -1156,7 +1207,7 @@ class ResumeApp:
         # Hero Section
         st.markdown("""
             <div class="hero-section">
-                <h1 class="hero-title">About Smart Resume AI</h1>
+                <h1 class="hero-title">About Smart AI Analyzer</h1>
                 <p class="hero-subtitle">A powerful AI-driven platform for optimizing your resume</p>
             </div>
         """, unsafe_allow_html=True)
@@ -1164,26 +1215,20 @@ class ResumeApp:
         # Profile Section
         st.markdown(f"""
             <div class="profile-section">
-                <img src="{image_base64 if image_base64 else 'https://avatars.githubusercontent.com/Hunterdii'}"
-                     alt="Het Patel"
+                <img src="{image_base64 if image_base64 else 'https://avatars.githubusercontent.com/Karankumar2403'}"
+                     alt="Karan Kumar"
                      class="profile-image"
-                     onerror="this.onerror=null; this.src='https://avatars.githubusercontent.com/Hunterdii';">
-                <h2 class="profile-name">Het Patel (Hunterdii)</h2>
+                     onerror="this.onerror=null; this.src='https://avatars.githubusercontent.com/Karankumar2403';">
+                <h2 class="profile-name">Karan Kumar (Karankumar2403)</h2>
                 <p class="profile-title">Full Stack Developer & AI/ML Enthusiast</p>
                 <div class="social-links">
-                    <a href="https://github.com/Hunterdii" class="social-link" target="_blank">
+                    <a href="https://github.com/Karankumar2403" class="social-link" target="_blank">
                         <i class="fab fa-github"></i>
-                    </a>
-                    <a href="https://www.linkedin.com/in/patel-hetkumar-sandipbhai-8b110525a/" class="social-link" target="_blank">
-                        <i class="fab fa-linkedin"></i>
-                    </a>
-                    <a href="mailto:hunterdii9879@gmail.com" class="social-link" target="_blank">
-                        <i class="fas fa-envelope"></i>
                     </a>
                 </div>
                 <p class="bio-text">
                     Hello! I'm a passionate Full Stack Developer with expertise in AI and Machine Learning.
-                    I created Smart Resume AI to revolutionize how job seekers approach their career journey.
+                    I created Smart AI Analyzer to revolutionize how job seekers approach their career journey.
                     With my background in both software development and AI, I've designed this platform to
                     provide intelligent, data-driven insights for resume optimization.
                 </p>
@@ -1199,7 +1244,7 @@ class ResumeApp:
                 <i class="fas fa-lightbulb vision-icon"></i>
                 <h2 class="vision-title">Our Vision</h2>
                 <p class="vision-text">
-                    "Smart Resume AI represents my vision of democratizing career advancement through technology.
+                    "Smart AI Analyzer represents my vision of democratizing career advancement through technology.
                     By combining cutting-edge AI with intuitive design, this platform empowers job seekers at
                     every career stage to showcase their true potential and stand out in today's competitive job market."
                 </p>
@@ -1238,8 +1283,6 @@ class ResumeApp:
                 </a>
             </div>
         """, unsafe_allow_html=True)
-
-        st.toast("Check out these repositories: [Iriswise](https://github.com/Hunterdii/Iriswise)", icon="ℹ️")
 
     def render_analyzer(self):
         """Render the resume analyzer page"""
@@ -2798,15 +2841,175 @@ class ResumeApp:
                             import traceback as tb
                             st.code(tb.format_exc())
 
-        st.toast("Check out these repositories: [Awesome Java](https://github.com/Hunterdii/Awesome-Java)", icon="ℹ️")
 
+    def render_history(self):
+        """Render the personalized user account resume history page"""
+        apply_modern_styles()
+        
+        # Page Header
+        page_header(
+            "My Resume History 📜",
+            "View and download your previously generated resumes and track your ATS score progression"
+        )
+        
+        # Verify user login session
+        if 'user_profile' not in st.session_state:
+            st.warning("🔒 Please sign in with Google or GitHub in the sidebar to view your resume history.")
+            
+            # Show a beautiful CTA card
+            st.markdown("""
+            <div style="background-color: var(--bg-dark); border: 1px solid var(--border-color); border-radius: 15px; padding: 30px; text-align: center; margin-top: 20px;">
+                <i class="fas fa-history" style="font-size: 3rem; color: var(--accent-color); margin-bottom: 15px;"></i>
+                <h3>Track Your Career Progress</h3>
+                <p style="color: var(--text-secondary); max-width: 600px; margin: 0 auto 20px auto;">
+                    Logging in allows us to securely save and back up all the resumes you build, enabling you to compare your scores, review optimization improvements, and download past versions at any time.
+                </p>
+            </div>
+            """, unsafe_allow_html=True)
+            return
+
+        profile = st.session_state.user_profile
+        history = get_user_resume_history(profile['email'])
+        
+        if not history:
+            st.info("💡 You haven't generated any resumes yet! Head over to the 📝 RESUME BUILDER to get started.")
+            return
+            
+        # Draw Score Progression Chart if multiple records exist
+        if len(history) >= 1:
+            st.subheader("📈 ATS Score Progression")
+            
+            # Sort chronologically for chart
+            chart_data = sorted(history, key=lambda x: x['created_at'])
+            dates = [datetime.strptime(item['created_at'], '%Y-%m-%d %H:%M:%S').strftime('%b %d, %Y') for item in chart_data]
+            scores = [item['ats_score'] if item['ats_score'] is not None else 0 for item in chart_data]
+            
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=dates,
+                y=scores,
+                mode='lines+markers',
+                name='ATS Score',
+                line=dict(color='#00B4DB', width=3),
+                marker=dict(size=8, color='#0083B0')
+            ))
+            
+            fig.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#E0E0E0'),
+                xaxis=dict(gridcolor='#3D3D3D'),
+                yaxis=dict(gridcolor='#3D3D3D', range=[0, 105]),
+                margin=dict(l=20, r=20, t=10, b=10),
+                height=300
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+        st.subheader("📁 Saved Resumes")
+        st.markdown("---")
+        
+        # Display each resume card
+        for idx, item in enumerate(history):
+            created_time = datetime.strptime(item['created_at'], '%Y-%m-%d %H:%M:%S').strftime('%B %d, %Y at %I:%M %p')
+            ats_val = item['ats_score'] if item['ats_score'] is not None else 0
+            
+            # Deserialize nested data securely
+            import ast
+            try:
+                edu_list = ast.literal_eval(item['education']) if item['education'] else []
+                exp_list = ast.literal_eval(item['experience']) if item['experience'] else []
+                proj_list = ast.literal_eval(item['projects']) if item['projects'] else []
+                skills_dict = ast.literal_eval(item['skills']) if item['skills'] else {}
+            except Exception:
+                edu_list = []
+                exp_list = []
+                proj_list = []
+                skills_dict = {}
+                
+            # Render visual details card
+            with st.container():
+                col_left, col_right = st.columns([3, 1])
+                with col_left:
+                    st.markdown(f"""
+                    <div style="background-color: var(--bg-light); border-left: 5px solid var(--accent-color); padding: 15px; border-radius: 4px; margin-bottom: 10px;">
+                        <h4 style="margin: 0; color: var(--text-primary);">{item['target_role']}</h4>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">
+                            📅 <b>Created:</b> {created_time} &nbsp;|&nbsp; 🎨 <b>Template:</b> {item['template'].capitalize()} &nbsp;|&nbsp; 📁 <b>Category:</b> {item['target_category']}
+                        </div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with col_right:
+                    # Draw gauge-like score box
+                    score_color = "#4CAF50" if ats_val >= 70 else "#FFA726" if ats_val >= 50 else "#F44336"
+                    st.markdown(f"""
+                    <div style="text-align: center; background-color: var(--bg-light); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;">ATS Score</div>
+                        <div style="font-size: 24px; font-weight: bold; color: {score_color};">{int(ats_val)}%</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                # Re-generate buffers to enable direct re-downloads
+                res_data = {
+                    "personal_info": {
+                        "full_name": item['name'],
+                        "email": item['email'],
+                        "phone": item['phone'],
+                        "linkedin": item['linkedin'],
+                        "github": item['github'],
+                        "portfolio": item['portfolio'],
+                        "title": item['target_role']
+                    },
+                    "summary": item['summary'],
+                    "experience": exp_list,
+                    "education": edu_list,
+                    "projects": proj_list,
+                    "skills": skills_dict,
+                    "template": item['template']
+                }
+                
+                try:
+                    docx_buf = self.builder.generate_resume(res_data)
+                    pdf_buf = self.builder.generate_pdf(res_data)
+                    txt_buf = self.builder.generate_txt(res_data)
+                    
+                    # Row of download buttons
+                    btn_col1, btn_col2, btn_col3 = st.columns(3)
+                    with btn_col1:
+                        st.download_button(
+                            label="Word (.docx) 📥",
+                            data=docx_buf,
+                            file_name=f"{item['name'].replace(' ', '_')}_{item['id']}_resume.docx",
+                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                            key=f"dl_docx_{item['id']}_{idx}"
+                        )
+                    with btn_col2:
+                        st.download_button(
+                            label="PDF (.pdf) 📥",
+                            data=pdf_buf,
+                            file_name=f"{item['name'].replace(' ', '_')}_{item['id']}_resume.pdf",
+                            mime="application/pdf",
+                            key=f"dl_pdf_{item['id']}_{idx}"
+                        )
+                    with btn_col3:
+                        st.download_button(
+                            label="Plain Text (.txt) 📥",
+                            data=txt_buf,
+                            file_name=f"{item['name'].replace(' ', '_')}_{item['id']}_resume.txt",
+                            mime="text/plain",
+                            key=f"dl_txt_{item['id']}_{idx}"
+                        )
+                except Exception as buffer_error:
+                    st.error("Error preparing download buffers for this item.")
+                    
+                st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+                st.markdown("---")
 
     def render_home(self):
         apply_modern_styles()
         
         # Hero Section
         hero_section(
-            "Smart Resume AI",
+            "Smart AI Analyzer",
             "Transform your career with AI-powered resume analysis and building. Get personalized insights and create professional resumes that stand out."
         )
         
@@ -2832,8 +3035,6 @@ class ResumeApp:
         )
         
         st.markdown('</div>', unsafe_allow_html=True)
-        
-        st.toast("Check out these repositories: [AI-Nexus(AI/ML)](https://github.com/Hunterdii/AI-Nexus)", icon="ℹ️")
 
         # Call-to-Action with Streamlit navigation
         col1, col2, col3 = st.columns([1, 1, 1])
@@ -2849,8 +3050,6 @@ class ResumeApp:
     def render_job_search(self):
         """Render the job search page"""
         render_job_search()
-
-        st.toast("Check out these repositories: [GeeksforGeeks-POTD](https://github.com/Hunterdii/GeeksforGeeks-POTD)", icon="ℹ️")
 
 
     def render_feedback_page(self):
@@ -2875,46 +3074,221 @@ class ResumeApp:
         with stats_tab:
             feedback_manager.render_feedback_stats()
 
-        st.toast("Check out these repositories: [TryHackMe Free Rooms](https://github.com/Hunterdii/tryhackme-free-rooms)", icon="ℹ️")
-
 
     def show_repo_notification(self):
         message = """
-<div style="background-color: #1e1e1e; border-radius: 10px; border: 1px solid #4b6cb7; padding: 10px; margin: 10px 0; color: white;">
-    <div style="margin-bottom: 10px;">Check out these other repositories:</div>
-    <div style="margin-bottom: 5px;"><b>Hacking Resources:</b></div>
-    <ul style="margin-top: 0; padding-left: 20px;">
-        <li><a href="https://github.com/Hunterdii/tryhackme-free-rooms" target="_blank" style="color: #4CAF50;">TryHackMe Free Rooms</a></li>
-        <li><a href="https://github.com/Hunterdii/Awesome-Hacking" target="_blank" style="color: #4CAF50;">Awesome Hacking</a></li>
+<div style="background-color: #1e1e1e; border-radius: 10px; border: 1px solid #00B4DB; padding: 10px; margin: 10px 0; color: white;">
+    <div style="margin-bottom: 10px;"><b>💡 Quick Resume Tips:</b></div>
+    <ul style="margin-top: 0; padding-left: 20px; font-size: 13px; color: #B0B0B0; line-height: 1.5;">
+        <li>Use action verbs to start your bullet points.</li>
+        <li>Quantify your achievements with metrics and percentages.</li>
+        <li>Tailor your resume keywords to match the target job description.</li>
+        <li>Keep your format simple, clean, and ATS-friendly.</li>
     </ul>
-    <div style="margin-bottom: 5px;"><b>Programming Languages:</b></div>
-    <ul style="margin-top: 0; padding-left: 20px;">
-        <li><a href="https://github.com/Hunterdii/Awesome-Java" target="_blank" style="color: #4CAF50;">Awesome Java</a></li>
-        <li><a href="https://github.com/Hunterdii/30-Days-Of-Rust" target="_blank" style="color: #4CAF50;">30 Days Of Rust</a></li>
-    </ul>
-    <div style="margin-bottom: 5px;"><b>Data Structures & Algorithms:</b></div>
-    <ul style="margin-top: 0; padding-left: 20px;">
-        <li><a href="https://github.com/Hunterdii/GeeksforGeeks-POTD" target="_blank" style="color: #4CAF50;">GeeksforGeeks POTD</a></li>
-        <li><a href="https://github.com/Hunterdii/Leetcode-POTD" target="_blank" style="color: #4CAF50;">Leetcode POTD</a></li>
-    </ul>
-    <div style="margin-bottom: 5px;"><b>AI/ML Projects:</b></div>
-    <ul style="margin-top: 0; padding-left: 20px;">
-        <li><a href="https://github.com/Hunterdii/AI-Nexus" target="_blank" style="color: #4CAF50;">AI Nexus</a></li>
-    </ul>
-    <div style="margin-top: 10px;">If you find this project helpful, please consider ⭐ starring the repo!</div>
 </div>
 """
         st.sidebar.markdown(message, unsafe_allow_html=True)
 
 
+    def render_login_page(self):
+        """Render a premium login page for unauthenticated users"""
+        from utils.auth_manager import get_google_auth_url, get_github_auth_url
+        
+        google_url = get_google_auth_url()
+        github_url = get_github_auth_url()
+        
+        # Center-aligned layout
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown("<br><br>", unsafe_allow_html=True)
+            # Modern hero title
+            st.markdown("""
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <div style="font-size: 3.5rem; font-weight: 800; background: var(--primary-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 0.5rem; font-family: 'Outfit', sans-serif;">
+                        Smart AI Analyzer
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 1.2rem; font-family: 'Inter', sans-serif;">
+                        Next-Generation AI Resume Optimization & Analytics
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Glass container
+            st.markdown(f"""
+            <div class="stCard" style="padding: 2.5rem; margin-top: 1rem; border-radius: 24px;">
+                <h3 style="text-align: center; margin-bottom: 2rem; color: var(--text-primary); font-family: 'Outfit', sans-serif; font-size: 1.8rem;">
+                    Secure Portal Login
+                </h3>
+                <p style="text-align: center; color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 2rem;">
+                    Choose an authentication method to unlock your personal workspace and analytics dashboard.
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 25px;">
+                    <a href="{google_url}" target="_self" style="text-decoration: none;">
+                        <div style="display: flex; align-items: center; justify-content: center; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 14px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" style="width: 20px; height: 20px; margin-right: 12px;">
+                            <span style="color: #1f2937; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif;">Continue with Google</span>
+                        </div>
+                    </a>
+                    <a href="{github_url}" target="_self" style="text-decoration: none;">
+                        <div style="display: flex; align-items: center; justify-content: center; background-color: #1e293b; border: 1px solid rgba(255,255,255,0.08); padding: 14px; border-radius: 12px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.15);">
+                            <svg height="20" viewBox="0 0 16 16" version="1.1" width="20" style="fill: white; margin-right: 12px;">
+                                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                            </svg>
+                            <span style="color: #ffffff; font-size: 15px; font-weight: 600; font-family: 'Inter', sans-serif;">Continue with GitHub</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            
+            # Divider and Admin login trigger
+            st.markdown("<div style='text-align: center; color: var(--text-secondary); margin: 1.5rem 0;'>or login as administrator</div>", unsafe_allow_html=True)
+            with st.expander("👤 Administrator Access"):
+                admin_email = st.text_input("Admin Email", key="login_admin_email")
+                admin_pass = st.text_input("Password", type="password", key="login_admin_password")
+                if st.button("Authenticate", key="login_admin_submit", width='stretch'):
+                    try:
+                        if verify_admin(admin_email, admin_pass):
+                            st.session_state.is_admin = True
+                            st.session_state.current_admin_email = admin_email
+                            log_admin_action(admin_email, "login")
+                            st.success("Successfully authenticated as Admin!")
+                            time.sleep(0.5)
+                            st.rerun()
+                        else:
+                            st.error("Invalid administrator credentials.")
+                    except Exception as e:
+                        st.error(f"Authentication error: {str(e)}")
+
+
     def main(self):
         """Main application entry point"""
+        # Load theme from session state or query params first
+        if 'theme' not in st.session_state:
+            st.session_state.theme = 'Sleek Dark'
+            
+        # Apply CSS themes dynamically
+        self.apply_theme_colors()
         self.apply_global_styles()
+        
+        # Check query parameters for OAuth callback
+        query_params = st.query_params
+        is_callback = "code" in query_params and "state" in query_params
+        
+        # Decode and restore user session from JWT if session is active
+        if 'jwt_token' in st.session_state and 'user_profile' not in st.session_state:
+            from utils.auth_manager import decode_jwt_token
+            profile = decode_jwt_token(st.session_state.jwt_token)
+            if profile:
+                st.session_state.user_profile = profile
+            else:
+                del st.session_state.jwt_token
+
+        is_authenticated = ('user_profile' in st.session_state) or st.session_state.get('is_admin', False)
+
+        if not is_authenticated and not is_callback:
+            self.render_login_page()
+            self.add_footer()
+            return
+        
+        # Check query parameters for OAuth callback
+        query_params = st.query_params
+        if "code" in query_params and "state" in query_params:
+            code = query_params["code"]
+            state = query_params["state"]
+            
+            # Clear query parameters
+            st.query_params.clear()
+            
+            # Exchange callback code
+            from utils.auth_manager import handle_google_callback, handle_github_callback, generate_jwt_token
+            user_info = None
+            if state == "google":
+                user_info = handle_google_callback(code)
+            elif state == "github":
+                user_info = handle_github_callback(code)
+                
+            if user_info:
+                token = generate_jwt_token(user_info)
+                if token:
+                    st.session_state.jwt_token = token
+                    st.session_state.user_profile = user_info
+                    st.success(f"Logged in successfully via {user_info['provider'].capitalize()}! 🎉")
+                    time.sleep(1)
+                    st.rerun()
+            else:
+                st.error("Authentication failed. Please try again.")
+
+        # Decode and restore user session from JWT if session is active
+        if 'jwt_token' in st.session_state and 'user_profile' not in st.session_state:
+            from utils.auth_manager import decode_jwt_token
+            profile = decode_jwt_token(st.session_state.jwt_token)
+            if profile:
+                st.session_state.user_profile = profile
+            else:
+                del st.session_state.jwt_token
         
         # Admin login/logout in sidebar
         with st.sidebar:
             st_lottie(self.load_lottie_url("https://assets5.lottiefiles.com/packages/lf20_xyadoh9h.json"), height=200, key="sidebar_animation")
-            st.title("Smart Resume AI")
+            st.title("Smart AI Analyzer")
+            st.markdown("---")
+            
+            # Theme Selector
+            selected_theme = st.selectbox(
+                "🎨 UI Theme",
+                ["Sleek Dark", "Modern Light", "Sunset Glow"],
+                index=["Sleek Dark", "Modern Light", "Sunset Glow"].index(st.session_state.theme),
+                key="theme_selector_widget"
+            )
+            if selected_theme != st.session_state.theme:
+                st.session_state.theme = selected_theme
+                st.rerun()
+            st.markdown("---")
+            
+            # User profile or Login Options
+            if 'user_profile' in st.session_state:
+                profile = st.session_state.user_profile
+                st.markdown(f"""
+                <div style="background-color: var(--bg-light); border: 1px solid var(--border-color); border-radius: 12px; padding: 15px; margin-bottom: 15px; text-align: center;">
+                    <img src="{profile.get('avatar', 'https://www.w3schools.com/howto/img_avatar.png')}" style="width: 60px; height: 60px; border-radius: 50%; border: 2px solid var(--accent-color); margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 15px; color: var(--text-primary);">{profile.get('name', 'User')}</div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 10px;">{profile.get('email', '')}</div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button("🚪 Logout", key="oauth_logout_btn", width='stretch'):
+                    del st.session_state.user_profile
+                    if 'jwt_token' in st.session_state:
+                        del st.session_state.jwt_token
+                    st.success("Logged out successfully!")
+                    time.sleep(0.5)
+                    st.rerun()
+            else:
+                st.markdown("🔒 **Account Login**")
+                from utils.auth_manager import get_google_auth_url, get_github_auth_url
+                
+                google_url = get_google_auth_url()
+                github_url = get_github_auth_url()
+                
+                st.markdown(f"""
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+                    <a href="{google_url}" target="_self" style="text-decoration: none;">
+                        <div style="display: flex; align-items: center; justify-content: center; background-color: white; border: 1px solid #ddd; padding: 10px; border-radius: 8px; cursor: pointer;">
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" style="width: 18px; height: 18px; margin-right: 10px;">
+                            <span style="color: #757575; font-size: 14px; font-weight: 500; font-family: 'Roboto', sans-serif;">Sign in with Google</span>
+                        </div>
+                    </a>
+                    <a href="{github_url}" target="_self" style="text-decoration: none;">
+                        <div style="display: flex; align-items: center; justify-content: center; background-color: #24292e; padding: 10px; border-radius: 8px; cursor: pointer;">
+                            <svg height="18" viewBox="0 0 16 16" version="1.1" width="18" style="fill: white; margin-right: 10px;">
+                                <path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+                            </svg>
+                            <span style="color: white; font-size: 14px; font-weight: 500; font-family: sans-serif;">Sign in with GitHub</span>
+                        </div>
+                    </a>
+                </div>
+                """, unsafe_allow_html=True)
             st.markdown("---")
             
             # Navigation buttons

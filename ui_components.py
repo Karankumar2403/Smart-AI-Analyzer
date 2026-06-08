@@ -207,12 +207,13 @@ def about_section(title, description, team_members=None):
         </div>
         <style>
             .about-section {{
-                background: linear-gradient(135deg, #2D2D2D 0%, #1E1E1E 100%);
-                border-radius: 20px;
+                background: linear-gradient(135deg, var(--bg-light) 0%, var(--bg-dark) 100%);
+                border-radius: 24px;
                 padding: 3rem 2rem;
                 margin: 2rem 0;
                 position: relative;
                 overflow: hidden;
+                border: 1px solid var(--border-color);
             }}
             
             .about-section::before {{
@@ -222,18 +223,18 @@ def about_section(title, description, team_members=None):
                 left: -50%;
                 width: 200%;
                 height: 200%;
-                background: radial-gradient(circle, rgba(0,180,219,0.1) 0%, transparent 70%);
+                background: radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 70%);
                 animation: rotate 20s linear infinite;
             }}
             
             .about-section h2 {{
-                color: #E0E0E0;
+                color: var(--text-primary);
                 margin-bottom: 1.5rem;
-                font-size: 2rem;
+                font-size: 2.2rem;
             }}
             
             .about-description {{
-                color: #B0B0B0;
+                color: var(--text-secondary);
                 line-height: 1.6;
                 font-size: 1.1rem;
                 max-width: 800px;
@@ -248,17 +249,18 @@ def about_section(title, description, team_members=None):
             }}
             
             .team-member {{
-                background: #2D2D2D;
-                border-radius: 15px;
+                background: var(--bg-dark);
+                border-radius: 20px;
                 padding: 1.5rem;
                 text-align: center;
-                border: 1px solid #3D3D3D;
-                transition: all 0.3s ease;
+                border: 1px solid var(--border-color);
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             }}
             
             .team-member:hover {{
                 transform: translateY(-5px);
-                border-color: #00B4DB;
+                border-color: var(--accent-color);
+                box-shadow: 0 10px 30px rgba(99, 102, 241, 0.15);
             }}
             
             .team-member img {{
@@ -266,15 +268,16 @@ def about_section(title, description, team_members=None):
                 height: 120px;
                 border-radius: 50%;
                 margin-bottom: 1rem;
+                border: 2px solid var(--border-color);
             }}
             
             .team-member h3 {{
-                color: #E0E0E0;
+                color: var(--text-primary);
                 margin-bottom: 0.5rem;
             }}
             
             .team-member p {{
-                color: #B0B0B0;
+                color: var(--text-secondary);
             }}
         </style>
     """, unsafe_allow_html=True)

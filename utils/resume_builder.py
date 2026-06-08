@@ -832,3 +832,282 @@ class ResumeBuilder:
             'html': preview_html,
             'css': template['css']
         }
+
+    def generate_txt(self, data):
+        """Generate plain text version of resume"""
+        try:
+            txt = []
+            personal = data.get('personal_info', {})
+            txt.append(personal.get('full_name', '').upper())
+            if personal.get('title'):
+                txt.append(personal['title'])
+            
+            contact = []
+            if personal.get('email'): contact.append(f"Email: {personal['email']}")
+            if personal.get('phone'): contact.append(f"Phone: {personal['phone']}")
+            if personal.get('location'): contact.append(f"Location: {personal['location']}")
+            txt.append(" | ".join(contact))
+            
+            links = []
+            if personal.get('linkedin'): links.append(f"LinkedIn: {personal['linkedin']}")
+            if personal.get('portfolio'): links.append(f"Portfolio: {personal['portfolio']}")
+            if links:
+                txt.append(" | ".join(links))
+                
+            txt.append("\n" + "="*50 + "\n")
+            
+            if data.get('summary'):
+                txt.append("PROFESSIONAL SUMMARY")
+                txt.append("-" * 20)
+                txt.append(data['summary'] + "\n")
+                
+            if data.get('experiences') or data.get('experience'):
+                txt.append("WORK EXPERIENCE")
+                txt.append("-" * 20)
+                experiences = data.get('experiences') or data.get('experience') or []
+                for exp in experiences:
+                    txt.append(f"{exp.get('position')} at {exp.get('company')} ({exp.get('start_date')} - {exp.get('end_date')})")
+                    if exp.get('description'):
+                        txt.append(exp['description'])
+                    if exp.get('responsibilities'):
+                        resps = self._format_list_items(exp['responsibilities'])
+                        for resp in resps:
+                            txt.append(f"  • {resp}")
+                    txt.append("")
+                    
+            if data.get('projects'):
+                txt.append("PROJECTS")
+                txt.append("-" * 20)
+                for proj in data['projects']:
+                    tech = f" (Tech: {proj['technologies']})" if proj.get('technologies') else ""
+                    txt.append(f"{proj.get('name')}{tech}")
+                    if proj.get('description'):
+                        txt.append(proj['description'])
+                    if proj.get('responsibilities'):
+                        resps = self._format_list_items(proj['responsibilities'])
+                        for resp in resps:
+                            txt.append(f"  • {resp}")
+                    txt.append("")
+                    
+            if data.get('education'):
+                txt.append("EDUCATION")
+                txt.append("-" * 20)
+                for edu in data['education']:
+                    gpa_str = f" | GPA: {edu['gpa']}" if edu.get('gpa') else ""
+                    txt.append(f"{edu.get('school')} - {edu.get('degree')} in {edu.get('field')} ({edu.get('graduation_date')}{gpa_str})")
+                    txt.append("")
+                    
+            if data.get('skills_categories') or data.get('skills'):
+                txt.append("SKILLS")
+                txt.append("-" * 20)
+                skills = data.get('skills_categories') or data.get('skills') or {}
+                for cat, label in [('technical', 'Technical Skills'), ('soft', 'Soft Skills'), ('languages', 'Languages'), ('tools', 'Tools & Technologies')]:
+                    if skills.get(cat):
+                        items = skills[cat]
+                        if isinstance(items, list):
+                            items_str = ", ".join(items)
+                        else:
+                            items_str = str(items)
+                        txt.append(f"{label}: {items_str}")
+            
+            buffer = BytesIO()
+            buffer.write("\n".join(txt).encode('utf-8'))
+            buffer.seek(0)
+            return buffer
+        except Exception as e:
+            print(f"Error in generate_txt: {e}")
+            raise
+
+    def generate_pdf(self, data):
+        """Generate PDF version of resume using ReportLab"""
+        try:
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib import colors
+            
+            buffer = BytesIO()
+            doc = SimpleDocTemplate(
+                buffer,
+                pagesize=letter,
+                rightMargin=54, leftMargin=54, topMargin=36, bottomMargin=36
+            )
+            
+            styles = getSampleStyleSheet()
+            
+            # Custom paragraph styles
+            title_style = ParagraphStyle(
+                'TitleStyle',
+                parent=styles['Normal'],
+                fontName='Helvetica-Bold',
+                fontSize=22,
+                leading=26,
+                textColor=colors.HexColor('#2c3e50'),
+                alignment=1, # Center
+                spaceAfter=4
+            )
+            subtitle_style = ParagraphStyle(
+                'SubtitleStyle',
+                parent=styles['Normal'],
+                fontName='Helvetica',
+                fontSize=10,
+                leading=13,
+                textColor=colors.HexColor('#7f8c8d'),
+                alignment=1, # Center
+                spaceAfter=10
+            )
+            section_style = ParagraphStyle(
+                'SectionStyle',
+                parent=styles['Normal'],
+                fontName='Helvetica-Bold',
+                fontSize=12,
+                leading=15,
+                textColor=colors.HexColor('#2980b9'),
+                spaceBefore=10,
+                spaceAfter=4,
+                keepWithNext=True
+            )
+            body_style = ParagraphStyle(
+                'BodyStyle',
+                parent=styles['Normal'],
+                fontName='Helvetica',
+                fontSize=9.5,
+                leading=13,
+                textColor=colors.HexColor('#2c3e50'),
+                spaceAfter=3
+            )
+            bullet_style = ParagraphStyle(
+                'BulletStyle',
+                parent=body_style,
+                leftIndent=15,
+                firstLineIndent=-10,
+                spaceAfter=2
+            )
+            
+            story = []
+            personal = data.get('personal_info', {})
+            
+            # Name & Title
+            story.append(Paragraph(personal.get('full_name', '').upper(), title_style))
+            if personal.get('title'):
+                story.append(Paragraph(personal['title'], subtitle_style))
+            
+            # Contact Details & Socials
+            contact_parts = []
+            if personal.get('email'): contact_parts.append(personal['email'])
+            if personal.get('phone'): contact_parts.append(personal['phone'])
+            if personal.get('location'): contact_parts.append(personal['location'])
+            if personal.get('linkedin'): contact_parts.append(personal['linkedin'])
+            if personal.get('portfolio'): contact_parts.append(personal['portfolio'])
+            
+            contact_str = " | ".join(contact_parts)
+            story.append(Paragraph(contact_str, subtitle_style))
+            story.append(Spacer(1, 5))
+            
+            # Horizontal divider line helper
+            def add_section_header(title_text):
+                story.append(Paragraph(title_text, section_style))
+                divider = Table([['']], colWidths=[504], rowHeights=[1.5])
+                divider.setStyle(TableStyle([
+                    ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#2980b9')),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+                    ('TOPPADDING', (0,0), (-1,-1), 0),
+                ]))
+                story.append(divider)
+                story.append(Spacer(1, 4))
+
+            # Professional Summary
+            if data.get('summary'):
+                add_section_header('PROFESSIONAL SUMMARY')
+                story.append(Paragraph(data['summary'], body_style))
+                story.append(Spacer(1, 5))
+                
+            # Experience Section
+            experiences = data.get('experiences') or data.get('experience') or []
+            if experiences:
+                add_section_header('EXPERIENCE')
+                for exp in experiences:
+                    exp_title = f"<b>{exp.get('position')}</b> at <b>{exp.get('company')}</b>"
+                    exp_date = f"<i>{exp.get('start_date')} - {exp.get('end_date')}</i>"
+                    
+                    row_data = [[Paragraph(exp_title, body_style), Paragraph(exp_date, ParagraphStyle('RightText', parent=body_style, alignment=2))]]
+                    title_table = Table(row_data, colWidths=[360, 144])
+                    title_table.setStyle(TableStyle([
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('LEFTPADDING', (0,0), (-1,-1), 0),
+                        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                        ('TOPPADDING', (0,0), (-1,-1), 2),
+                    ]))
+                    story.append(title_table)
+                    
+                    if exp.get('description'):
+                        story.append(Paragraph(exp['description'], body_style))
+                    if exp.get('responsibilities'):
+                        resps = self._format_list_items(exp['responsibilities'])
+                        for resp in resps:
+                            story.append(Paragraph(f"&bull; {resp}", bullet_style))
+                    story.append(Spacer(1, 4))
+            
+            # Projects Section
+            projects = data.get('projects') or []
+            if projects:
+                add_section_header('PROJECTS')
+                for proj in projects:
+                    proj_title = f"<b>{proj.get('name')}</b>"
+                    if proj.get('technologies'):
+                        proj_title += f" (<i>{proj['technologies']}</i>)"
+                    story.append(Paragraph(proj_title, body_style))
+                    
+                    if proj.get('description'):
+                        story.append(Paragraph(proj['description'], body_style))
+                    if proj.get('responsibilities'):
+                        resps = self._format_list_items(proj['responsibilities'])
+                        for resp in resps:
+                            story.append(Paragraph(f"&bull; {resp}", bullet_style))
+                    story.append(Spacer(1, 4))
+                    
+            # Education Section
+            education = data.get('education') or []
+            if education:
+                add_section_header('EDUCATION')
+                for edu in education:
+                    edu_title = f"<b>{edu.get('school')}</b> - {edu.get('degree')} in {edu.get('field')}"
+                    edu_date = f"<i>{edu.get('graduation_date')}</i>"
+                    if edu.get('gpa'):
+                        edu_title += f" (GPA: {edu['gpa']})"
+                    
+                    row_data = [[Paragraph(edu_title, body_style), Paragraph(edu_date, ParagraphStyle('RightText', parent=body_style, alignment=2))]]
+                    edu_table = Table(row_data, colWidths=[380, 124])
+                    edu_table.setStyle(TableStyle([
+                        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+                        ('LEFTPADDING', (0,0), (-1,-1), 0),
+                        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+                        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
+                        ('TOPPADDING', (0,0), (-1,-1), 2),
+                    ]))
+                    story.append(edu_table)
+                    story.append(Spacer(1, 3))
+                    
+            # Skills Section
+            skills = data.get('skills_categories') or data.get('skills') or {}
+            if skills:
+                has_skills = any(skills.get(cat) for cat in ['technical', 'soft', 'languages', 'tools'])
+                if has_skills:
+                    add_section_header('SKILLS')
+                    for cat, label in [('technical', 'Technical Skills'), ('soft', 'Soft Skills'), ('languages', 'Languages'), ('tools', 'Tools & Technologies')]:
+                        if skills.get(cat):
+                            items = skills[cat]
+                            items_list = self._format_list_items(items)
+                            if items_list:
+                                items_str = ", ".join(items_list)
+                                story.append(Paragraph(f"<b>{label}:</b> {items_str}", body_style))
+                                story.append(Spacer(1, 3))
+                                
+            # Build Document
+            doc.build(story)
+            buffer.seek(0)
+            return buffer
+        except Exception as e:
+            print(f"Error in generate_pdf: {e}")
+            raise

@@ -23,7 +23,7 @@ class AIResumeAnalyzer:
         load_dotenv()
         
         # Configure Google Gemini AI
-        self.google_api_key = os.getenv("GOOGLE_API_KEY")
+        self.google_api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
         self.openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
         
         if self.google_api_key:

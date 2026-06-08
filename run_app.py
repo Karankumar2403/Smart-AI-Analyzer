@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Run script for Smart AI Resume Analyzer
+Run script for Smart AI Analyzer
 This script handles Chrome/chromedriver setup and starts the application
 """
 
@@ -11,7 +11,7 @@ import platform
 
 def main():
     """Main function to set up chromedriver and run the application"""
-    print("Starting Smart AI Resume Analyzer...")
+    print("Starting Smart AI Analyzer...")
     
     # Run the chromedriver setup script silently
     setup_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "setup_chromedriver.py")

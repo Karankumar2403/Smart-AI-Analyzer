@@ -530,3 +530,32 @@ def reset_ai_analysis_stats():
         return {"success": False, "message": f"Error resetting AI analysis statistics: {str(e)}"}
     finally:
         conn.close()
+
+def get_user_resume_history(email):
+    """Retrieve all resume builds and analysis data for a specific user email"""
+    conn = get_database_connection()
+    cursor = conn.cursor()
+    try:
+        cursor.execute('''
+            SELECT 
+                r.id, r.name, r.email, r.phone, r.linkedin, r.github, r.portfolio,
+                r.summary, r.target_role, r.target_category, r.education, r.experience,
+                r.projects, r.skills, r.template, r.created_at,
+                a.ats_score, a.keyword_match_score, a.format_score, a.section_score,
+                a.missing_skills, a.recommendations
+            FROM resume_data r
+            LEFT JOIN resume_analysis a ON r.id = a.resume_id
+            WHERE r.email = ?
+            ORDER BY r.created_at DESC
+        ''', (email,))
+        
+        columns = [col[0] for col in cursor.description]
+        results = []
+        for row in cursor.fetchall():
+            results.append(dict(zip(columns, row)))
+        return results
+    except Exception as e:
+        print(f"Error getting user resume history: {e}")
+        return []
+    finally:
+        conn.close()
