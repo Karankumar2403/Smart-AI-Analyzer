@@ -6,19 +6,6 @@ This is an all-in-one, intelligent resume optimization and builder platform powe
 
 ---
 
-## 📽️ **Walkthrough Demo**
-
-Here is a quick demonstration showing how the application functions, from the secure login gate to dynamic theme switching, real-time AI resume analysis, and exporting builder content:
-
-<div align="center">
-  <video src="assets/walkthrough.mp4" width="100%" controls style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35);">
-    Your browser does not support the video tag.
-  </video>
-  <p><i>Note: Place your screen recording inside the <code>assets/</code> folder named <code>walkthrough.mp4</code> to update this demo!</i></p>
-</div>
-
----
-
 ## 🌟 **Key Features I Implemented**
 
 *   🔒 **Secure Portal Login**: Restricts app access using OAuth (Google & GitHub) and standard Administrator login verification, securing workspaces behind custom JWT tokens.
